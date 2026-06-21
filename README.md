@@ -1,4 +1,3 @@
-markdown_content = """# CP372: Computer Networks (Spring 2026)
 ## Assignment 2: Reliable Data Transfer over UDP
 
 This project implements and evaluates two fundamental reliable data transfer (RDT) protocols—**Stop-and-Wait** and **Go-Back-N (GBN)**—built entirely on top of standard Python UDP sockets. Since UDP is inherently an unreliable transport protocol, this project layers custom transport mechanisms (sequence numbers, ACKs, timeouts, and retransmissions) to guarantee 100% reliable file delivery over a lossy simulated network channel.
