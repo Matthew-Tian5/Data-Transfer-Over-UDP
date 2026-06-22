@@ -31,7 +31,6 @@ in this assignment (a 4 GB sequence space at >= 1 byte per packet covers up to
 billions of packets), which keeps the sliding-window arithmetic simple and
 bug-free.
 """
-
 import argparse
 import hashlib
 import json

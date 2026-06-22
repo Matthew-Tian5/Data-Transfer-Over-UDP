@@ -34,7 +34,6 @@ Default file sizes are a practical subset (10KB .. 1MB) because the largest
 sizes in the assignment (up to 100MB) take a very long time at 20-30% loss,
 especially for Stop-and-Wait and Go-Back-N. Pass --include-large to add the big
 sizes, or set your own with --sizes.
-
 Usage examples
 --------------
     python run_experiments.py

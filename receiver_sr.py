@@ -166,7 +166,6 @@ def run(args):
     log.info("Receiver done. simulated-losses=%d, corrupted-discards=%d", dropped, corrupted)
     return 0
 
-
 def _verify(log, meta, output_dir, bytes_written):
     """Check the received file against the size and SHA-256 from the sender."""
     if not meta:

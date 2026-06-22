@@ -205,7 +205,6 @@ def _report(args, log, protocol, filepath, filesize, mss, window,
     log.info("  packets sent    : %d (incl. retransmissions)", packets_sent)
     log.info("  retransmissions : %d", retransmissions)
     log.info("  throughput      : %.2f bytes/sec", throughput)
-
     if args.json:
         import json
         print(json.dumps({
