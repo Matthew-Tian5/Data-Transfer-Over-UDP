@@ -1,0 +1,103 @@
+CP372 Assignment 2 - Bonus Features
+====================================
+
+We did both options
+
+  Option A: Selective Repeat using a single timer.
+  Option B: Packet corruption simulation with checksums.
+
+
+OPTION A: SELECTIVE REPEAT (single timer)
+-----------------------------------------
+Files: sender_sr.py and receiver_sr.py
+
+How to run it:
+
+  Terminal 1:
+    python receiver_sr.py --port 5005 --window 16
+
+  Terminal 2:
+    python sender_sr.py --file myfile.txt --port 5005 --window 16
+
+The whole point of Selective Repeat is that, unlike Go-Back-N, the receiver
+does not throw away correct packets just because an earlier one went missing.
+It buffers anything that lands inside its window and acknowledges each packet on
+its own. Once the missing packet finally arrives, a whole run of buffered
+packets gets delivered to the file in order at once. The sender, for its part,
+only ever resends the packets that were actually lost, never the ones that have
+already been acknowledged.
+
+Sender side:
+  - It keeps a sliding window with a base (oldest unacked packet) and a
+    nextseqnum (next packet to send), and an acked flag for each packet.
+  - It fills the window, sending packets back to back without waiting.
+  - ACKs are individual. When an ACK for packet a arrives, only packet a is
+    marked acked. The window slides forward only when the base packet itself
+    gets acked, and then it jumps past every packet that is already acked.
+
+The single timer requirement:
+  This is where Selective Repeat normally cheats a bit. The textbook version
+  gives every outstanding packet its own timer. The bonus asks for one timer, so
+  I run a single timer that always tracks the oldest unacknowledged packet (the
+  base). When that timer fires, the sender retransmits only the packets in the
+  current window that are still unacked, and skips the ones already
+  acknowledged. That "skip the acked ones" step is exactly what separates this
+  from Go-Back-N, where a timeout resends the entire window. So with one timer I
+  keep the selective behaviour where it matters most, which is not wasting the
+  link on packets the receiver already has.
+
+Receiver side:
+  - It keeps a receive base (oldest packet not yet delivered) and a buffer of
+    packets that arrived out of order.
+  - A packet inside the window gets an individual ACK and goes into the buffer.
+    If it filled the base slot, the receiver delivers it and every buffered
+    packet right after it, sliding the base forward.
+  - A packet just below the window was already delivered, which means an earlier
+    ACK was lost, so the receiver re-acks it so the sender can move on.
+
+Why it is better, and where it is not:
+  At the same loss rate, Selective Repeat sends far fewer packets than Go-Back-N
+  because it does not resend things that already arrived. In my testing at 20
+  percent loss on a 100KB file, Go-Back-N averaged around 300 retransmissions
+  while Selective Repeat averaged around 24, which is close to the number of
+  packets that were actually dropped. It also finished noticeably faster. The
+  cost is complexity: the receiver now needs a buffer and has to track which
+  sequence numbers it is holding, which is more work than Go-Back-N's single
+  "next expected" counter.
+
+
+OPTION B: CORRUPTION SIMULATION WITH CHECKSUMS
+----------------------------------------------
+This works with all three protocols. It is controlled by the receiver's
+--corruption option.
+
+How to run it:
+
+  python receiver_gbn.py --port 5005 --corruption 0.05
+  python sender_gbn.py --file myfile.txt --port 5005 --window 16
+
+The 0.05 means each incoming datagram has a 5 percent chance of having one
+random bit flipped before it is decoded.
+
+How the detection works:
+  Every packet carries a 16 bit Internet checksum in its header, the same
+  checksum scheme used by IP, TCP, and UDP. The sender computes it over the
+  whole packet (with the checksum field set to zero) and writes it into the
+  header before sending. The receiver recomputes the checksum over what it
+  received and compares. If a bit got flipped anywhere in the header or the
+  payload, the recomputed checksum will not match, the decode step rejects the
+  packet, and it is discarded exactly like a lost packet. The sender's timer
+  then fires and it retransmits, so the file still arrives correct.
+
+Where it lives in the code:
+  The checksum itself is internet_checksum in rdt_common.py. Packet.encode
+  fills it in and Packet.decode verifies it and returns nothing if it fails. The
+  bit flipping is maybe_corrupt in rdt_common.py, and each receiver calls it on
+  the raw bytes before decoding. The flip happens before the checksum check on
+  purpose, so the checksum is what catches it.
+
+Result:
+  I tested this at 5 percent corruption on a 50KB file and the received file
+  still matched the original by size and SHA-256, with the corrupted packets
+  showing up as extra retransmissions. So the checksum is doing its job:
+  damaged packets are caught and resent rather than written to the file.
